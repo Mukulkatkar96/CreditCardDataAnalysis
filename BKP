@@ -1,0 +1,267 @@
+Bkp 1
+------------------
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# --- Page Config ---
+st.set_page_config(page_title="Credit Card Launch Insights", layout="wide")
+
+# --- Title & Description ---
+st.title("💳 Credit Card Launch Project Dashboard")
+st.markdown("""
+This dashboard presents insights derived from our in-depth analysis of customer demographics, credit profiles, transactions, and post-campaign behavior to assist a bank in identifying the target age group for a new credit card launch.
+""")
+
+# --- Load Data ---
+@st.cache_data
+def load_data():
+    avg_txns = pd.read_csv("avg_transactions_after_campaign.csv")
+    credit_profiles = pd.read_csv("credit_profiles.csv")
+    customers = pd.read_csv("customers.csv")
+    transactions = pd.read_csv("transactions.csv")
+    return avg_txns, credit_profiles, customers, transactions
+
+avg_txns, credit_profiles, customers, transactions = load_data()
+
+# --- Section 1: Dataset Overview ---
+st.header("📂 Dataset Overview")
+st.subheader("Customers Dataset")
+st.dataframe(customers.head())
+
+st.subheader("Credit Profiles Dataset")
+st.dataframe(credit_profiles.head())
+
+st.subheader("Transactions Dataset")
+st.dataframe(transactions.head())
+
+st.subheader("Avg Transactions After Campaign")
+st.dataframe(avg_txns.head())
+
+# --- Section 2: Customer Age Distribution ---
+st.header("👥 Customer Demographics Insights")
+fig1, ax1 = plt.subplots()
+sns.histplot(customers['age'], bins=30, kde=True, ax=ax1)
+ax1.set_title("Age Distribution of Customers")
+st.pyplot(fig1)
+
+# --- Section 3: Gender-wise Spending Analysis ---
+st.header("🧑‍🤝‍🧑 Gender-wise Spending Behavior")
+merged_txn = pd.merge(transactions, customers, on='cust_id')
+gender_spend = merged_txn.groupby('gender')['tran_amount'].sum().reset_index()
+fig2, ax2 = plt.subplots()
+sns.barplot(x='gender', y='tran_amount', data=gender_spend, ax=ax2)
+ax2.set_title("Total Transaction Amount by Gender")
+st.pyplot(fig2)
+
+# --- Section 4: Credit Score Distribution ---
+st.header("📈 Credit Score Insights")
+fig3, ax3 = plt.subplots()
+sns.histplot(credit_profiles['credit_score'], bins=30, kde=True, ax=ax3, color='orange')
+ax3.set_title("Credit Score Distribution")
+st.pyplot(fig3)
+
+# --- Section 5: Platform-wise Transaction Amount ---
+st.header("🛒 Platform-wise Transaction Amount")
+platform_spend = transactions.groupby('platform')['tran_amount'].sum().reset_index().sort_values(by='tran_amount', ascending=False)
+fig4, ax4 = plt.subplots()
+sns.barplot(x='tran_amount', y='platform', data=platform_spend, ax=ax4)
+ax4.set_title("Total Spend by Platform")
+st.pyplot(fig4)
+
+# --- Section 6: Credit Utilisation vs Outstanding Debt ---
+st.header("📊 Credit Utilisation & Outstanding Debt")
+fig5, ax5 = plt.subplots()
+sns.scatterplot(data=credit_profiles, x='credit_utilisation', y='outstanding_debt', hue='credit_score', palette='coolwarm', ax=ax5)
+ax5.set_title("Credit Utilisation vs Outstanding Debt")
+st.pyplot(fig5)
+
+# --- Section 7: Interactive Filters ---
+st.header("🔎 Interactive Customer Filter")
+age_filter = st.slider("Select Age Range", int(customers['age'].min()), int(customers['age'].max()), (25, 45))
+score_filter = st.slider("Select Credit Score Range", int(credit_profiles['credit_score'].min()), int(credit_profiles['credit_score'].max()), (500, 750))
+
+merged_profiles = pd.merge(customers, credit_profiles, on="cust_id")
+filtered = merged_profiles[(merged_profiles['age'] >= age_filter[0]) & (merged_profiles['age'] <= age_filter[1]) &
+                  (merged_profiles['credit_score'] >= score_filter[0]) & (merged_profiles['credit_score'] <= score_filter[1])]
+
+st.markdown(f"Filtered records: {len(filtered)}")
+st.dataframe(filtered.head())
+
+# --- Section 8: Correlation Heatmap ---
+st.header("📌 Correlation Matrix")
+fig6, ax6 = plt.subplots(figsize=(10,6))
+sns.heatmap(merged_profiles.corr(numeric_only=True), annot=True, cmap="coolwarm", ax=ax6)
+ax6.set_title("Correlation Between Customer & Credit Profile Attributes")
+st.pyplot(fig6)
+
+# --- Section 9: Summary & Recommendation ---
+st.header("✅ Summary & Recommendation")
+st.markdown("""
+- Most active transactional behavior was observed in the age group of 25-45.
+- Credit scores correlate positively with transactional frequency and campaign success.
+- Females showed slightly higher total spend compared to males.
+- Flipkart and Amazon were the most used platforms.
+- Mid-age group customers with moderate-to-high credit scores and decent income are ideal for targeting.
+""")
+
+# --- Section 10: Credit Card Launch Strategy Recommendation ---
+st.header("🚀 Credit Card Launch Strategy")
+
+# Analyze average spend and credit score by age group
+age_bins = pd.cut(merged_profiles['age'], bins=[18, 25, 35, 45, 55, 65, 80], labels=["18-25", "26-35", "36-45", "46-55", "56-65", "66-80"])
+merged_profiles['age_group'] = age_bins
+summary = merged_profiles.groupby('age_group').agg({
+    'credit_score': 'mean',
+    'annual_income': 'mean'
+}).reset_index()
+
+st.subheader("Average Credit Score & Income by Age Group")
+st.dataframe(summary)
+
+fig7, ax7 = plt.subplots()
+sns.barplot(x='age_group', y='credit_score', data=summary, ax=ax7)
+ax7.set_title("Average Credit Score by Age Group")
+st.pyplot(fig7)
+
+fig8, ax8 = plt.subplots()
+sns.barplot(x='age_group', y='annual_income', data=summary, ax=ax8, palette='viridis')
+ax8.set_title("Average Income by Age Group")
+st.pyplot(fig8)
+
+st.markdown("""
+### Final Recommendation:
+- Based on credit scores and income trends, the **26-45 age group** is most suitable for launching a new credit card product.
+- Suggested product type:
+  - **Lifestyle Credit Card** with shopping and travel rewards for ages 26-35 (younger professionals).
+  - **Premium Credit Card** with higher limits and credit score-based rewards for ages 36-45 (high-income professionals).
+""")
+
+st.success("Dashboard Rendered Successfully ✅")
+----------------
+
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set Streamlit page configuration
+st.set_page_config(page_title="Credit Card Launch Insights Dashboard", page_icon="💳", layout="wide")
+
+# Custom CSS for Advanced Dark UI
+st.markdown("""
+    <style>
+        body {
+            background-color: #0e1117;
+            color: #ffffff;
+        }
+        .reportview-container .main .block-container {
+            padding: 2rem 2rem 2rem 2rem;
+            background-color: #0e1117;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff;
+        }
+        .stButton>button {
+            background-color: #1f77b4;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            border: none;
+        }
+        .stDataFrame, .stTable, .stTextInput>div>div>input {
+            background-color: #20232a;
+            color: #ffffff;
+            border-radius: 8px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Title
+st.markdown("""
+    <h1 style='text-align: center; font-size: 3rem;'>💳 Credit Card Launch Insights Dashboard</h1>
+    <hr style='border: 2px solid #444;'>
+""", unsafe_allow_html=True)
+
+# Load datasets
+@st.cache_data
+def load_data():
+    customers = pd.read_csv("customers.csv")
+    transactions = pd.read_csv("transactions.csv")
+    credit_profiles = pd.read_csv("credit_profiles.csv")
+    avg_transactions = pd.read_csv("avg_transactions_after_campaign.csv")
+    return customers, transactions, credit_profiles, avg_transactions
+
+customers, transactions, credit_profiles, avg_transactions = load_data()
+
+# Tabs for navigation
+tabs = st.tabs(["📊 Overview", "👤 Demographics Analysis", "💰 Transaction Insights", "💳 Credit Profiles", "📈 Final Recommendation"])
+
+# Overview
+with tabs[0]:
+    st.subheader("📌 Project Summary")
+    st.markdown("""
+    This dashboard provides data-driven insights derived from over 50,000 customer records to help identify the most suitable target audience for a **new credit card launch**.
+
+    **Data Sources:**
+    - Customer Demographics
+    - Transactional Behaviour
+    - Credit Profiles
+    - Post-campaign Purchase Patterns
+    """)
+    st.markdown("""---""")
+    st.write("### Sample Data Preview:")
+    st.dataframe(customers.head(), use_container_width=True)
+
+# Demographics Analysis
+with tabs[1]:
+    st.subheader("👤 Customer Demographics Insights")
+    age_plot = sns.histplot(customers['age'], kde=True, bins=30, color='skyblue')
+    st.pyplot(age_plot.figure)
+
+    gender_dist = customers['gender'].value_counts()
+    fig, ax = plt.subplots()
+    ax.pie(gender_dist, labels=gender_dist.index, autopct='%1.1f%%', startangle=90, colors=['#FF69B4', '#87CEEB'])
+    ax.axis('equal')
+    st.pyplot(fig)
+
+# Transaction Insights
+with tabs[2]:
+    st.subheader("💰 Transactional Behaviour")
+    top_platforms = transactions['platform'].value_counts().head(10)
+    st.bar_chart(top_platforms)
+
+    transactions['tran_date'] = pd.to_datetime(transactions['tran_date'])
+    tran_by_month = transactions.groupby(transactions['tran_date'].dt.to_period("M")).size()
+    st.line_chart(tran_by_month)
+
+# Credit Profiles
+with tabs[3]:
+    st.subheader("💳 Credit Profiles Overview")
+    fig, ax = plt.subplots()
+    sns.boxplot(data=credit_profiles, x='credit_score', color='#4DB6AC', ax=ax)
+    st.pyplot(fig)
+
+    correlation_matrix = credit_profiles.corr(numeric_only=True)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
+
+# Final Recommendation
+with tabs[4]:
+    st.subheader("📈 Credit Card Launch Recommendation")
+
+    age_group = pd.cut(customers['age'], bins=[18, 25, 35, 45, 60], labels=["18-25", "26-35", "36-45", "46-60"])
+    age_counts = age_group.value_counts().sort_index()
+    st.bar_chart(age_counts)
+
+    avg_income_by_age = customers.groupby(age_group)['annual_income'].mean()
+    st.line_chart(avg_income_by_age)
+
+    st.markdown("""
+    #### ✅ Recommendation Summary:
+    - **Target Age Group:** 26-35 years – highest activity and healthy credit scores.
+    - **Preferred Card Type:** Lifestyle & Cashback Rewards Card.
+    - **Additional Benefits:** Online shopping rewards, flexible EMI plans, low annual fee.
+    """)
